@@ -56,7 +56,7 @@ def find_scanner():
     here = os.path.dirname(os.path.abspath(__file__))
     for c in _scanner_candidates():
         p = c if os.path.isabs(c) else os.path.normpath(os.path.join(here, c))
-        if c == 'scanner_path.txt':
+        if os.path.basename(p) == 'scanner_path.txt':
             if os.path.isfile(p):
                 inner = open(p, encoding='utf-8', errors='ignore').read().strip()
                 if inner and os.path.isfile(inner):
