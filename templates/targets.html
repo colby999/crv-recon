@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Latest Targets | CRV recon{% endblock %}
+{% block body %}
+<h1>Latest Targets &amp; Scope Changes</h1>
+<nav class="tabs">
+  <a href="/latest-targets" class="{% if not kind %}on{% endif %}">All</a>
+  <a href="/latest-targets?kind=program_added" class="{% if kind=='program_added' %}on{% endif %}">Added</a>
+  <a href="/latest-targets?kind=target_added" class="{% if kind=='target_added' %}on{% endif %}">Targets +</a>
+  <a href="/latest-targets?kind=target_removed" class="{% if kind=='target_removed' %}on{% endif %}">Targets −</a>
+</nav>
+<ul class="feed">
+{% for r in rows %}
+  <li>
+    {% if r.kind == 'program_added' and r.upstream_listed %}
+      <span class="meta">listed <strong>{{ r.upstream_listed }}</strong> on {{ r.platform }}</span>
+      <span class="meta">· radar noticed {{ r.ts[:19].replace('T', ' ') }} UTC</span>
+    {% else %}
+      <span class="meta">noticed {{ r.ts[:19].replace('T', ' ') }} UTC</span>
+    {% endif %}
+    <strong>{{ r.kind }}</strong>
+    <a href="/program/{{ r.program_id }}">{{ r.pname or r.program_id }}</a>
+    <span class="plat">{{ r.platform }}</span> {{ r.detail }}
+  </li>
+{% endfor %}
+</ul>
+{% endblock %}

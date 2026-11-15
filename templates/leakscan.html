@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Leak Scan | CRV recon{% endblock %}
+{% block body %}
+<h1>Leak Scan</h1>
+<p class="sub">Constant sweep: rotates every program (newest first), scanning GitHub targets — repos, orgs <strong>and their members</strong>, out-of-scope included — for leaked keys. Progress bars live on the <a href="/scans">Scans</a> hub. Repo worktrees only (no history dives); read-only, modest rates.</p>
+
+<div class="scanpanel">
+  {% if st.running %}<span class="chip sev sev-critical">SWEEP RUNNING</span>
+  <span class="meta">scanned {{ st.scanned }} · findings so far {{ st.findings }} · cursor at program {{ st.cursor }}</span>
+  <button class="refreshbtn" onclick="lsAction('stop', this)">⏹ stop sweep</button>
+  {% else %}<span class="chip">sweep idle</span>
+  <span class="meta">lifetime: scanned {{ st.scanned }} · findings {{ st.findings }}</span>
+  <button class="refreshbtn" onclick="lsAction('start', this)">▶ start leak scan</button>
+  {% endif %}
+  <label class="meta"><input type="checkbox" id="oosBox" {% if st.include_out_scope %}checked{% endif %} onchange="lsAction('include_out_scope', this, this.checked)"> include out-of-scope targets</label>
+  <span class="meta" id="lsMsg"></span>
+</div>
+
+<h2>Scans with findings</h2>
+{% if withfind %}<ul class="feed">{% for s in withfind %}
+<li><a href="/program/{{ s.program_id }}">{{ s.program_name }}</a> · {{ s.identity }} · <span class="chip sev sev-critical">⚠ {{ s.findings }} findings</span> · {{ s.summary }} · <details class="findetails" data-sid="{{ s.id }}"><summary class="meta">view</summary><button class="refreshbtn" onclick="checkLiveness(this, {{ s.id }})" title="derive addresses offline, check balance + nonce on a public RPC">⚖ check liveness</button><div class="ffind"></div></details></li>
+{% endfor %}</ul>{% else %}<p class="meta">No findings stored yet. The sweep scans repo worktrees (no history) — history dives stay manual via full/sniper.</p>{% endif %}
+
+<h2>All scans</h2>
+<div id="scanlist">
+{% for s in scans %}
+<div class="scanrow2" data-sid="{{ s.id }}">
+  <span class="chip">{{ s.mode }}</span>
+  <a href="/program/{{ s.program_id }}">{{ s.program_name }}</a>
+  <span class="meta">{{ s.identity }}</span>
+  {% if s.findings %}<span class="chip sev sev-critical">⚠ {{ s.findings }}</span><details class="findetails" data-sid="{{ s.id }}"><summary class="meta">view</summary><button class="refreshbtn" onclick="checkLiveness(this, {{ s.id }})" title="derive addresses offline, check balance + nonce on a public RPC">⚖ check liveness</button><div class="ffind"></div></details>{% endif %}
+  <div class="pbar {{ s.status }}{% if s.status == 'running' %} indeterminate{% endif %}"><i style="width:{{ s.progress }}%"></i></div>
+  <span class="meta sstat"><strong>{{ s.status }}</strong>{% if s.summary %} — {{ s.summary }}{% endif %}</span>
+  <span class="meta selapsed">{% if s.elapsed %}{{ (s.elapsed // 60) }}:{{ '%02d' % (s.elapsed % 60) }}{% endif %}</span>
+</div>
+{% else %}
+<p class="meta">No scans yet — start the sweep or hit a 🔍 button on any program page.</p>
+{% endfor %}
+</div>
+<script>
+const loadIso = new Date().toISOString().slice(0, 19) + 'Z';
+async function lsAction(action, el, value) {
+  const msg = document.getElementById('lsMsg');
+  try {
+    const r = await fetch('/api/leaksweep', {method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action, value})});
+    const d = await r.json();
+    if (msg) msg.textContent = d.ok ? 'done — reloading…' : (d.error || 'failed');
+  } catch (e) { if (msg) msg.textContent = 'failed: ' + e; }
+  setTimeout(() => location.reload(), 700);
+}
+async function poll() {
+  try {
+    const r = await (await fetch('/api/scans/all')).json();
+    const rows = r.scans || [];
+    const list = document.getElementById('scanlist');
+    const ids = rows.map(s => s.id).join(',');
+    const cur = Array.from(list.querySelectorAll('[data-sid]')).map(e => +e.dataset.sid).join(',');
+    if (ids !== cur) { setTimeout(() => location.reload(), 800); return; }
+    for (const s of rows) {
+      const el = list.querySelector('[data-sid="' + s.id + '"]');
+      if (!el) continue;
+      const bar = el.querySelector('.pbar i');
+      if (bar) bar.style.width = s.progress + '%';
+      const st = el.querySelector('.sstat');
+      if (st) {
+        st.textContent = '';
+        const b = document.createElement('strong');
+        b.textContent = s.status;
+        st.appendChild(b);
+        if (s.summary) st.appendChild(document.createTextNode(' — ' + s.summary));
+      }
+      const el2 = el.querySelector('.selapsed');
+      if (el2 && s.elapsed) el2.textContent = Math.floor(s.elapsed / 60) + ':' + String(s.elapsed % 60).padStart(2, '0');
+    }
+    const rp = document.getElementById('refreshPlatforms');
+    if (rp) {
+      const rs = await (await fetch('/api/refresh/status')).json();
+      if (rs.running) {
+        const fresh = Object.values(rs.scrapes || {}).filter(v => v > loadIso).length;
+        rp.textContent = fresh ? (fresh + ' platforms refreshed this cycle…') : 'starting…';
+      }
+    }
+  } catch (e) {}
+}
+setInterval(poll, 3000);
+</script>
+{% endblock %}

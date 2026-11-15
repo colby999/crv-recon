@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Platform Intelligence | CRV recon{% endblock %}
+{% block body %}
+<h1>Platform Intelligence</h1>
+<table class="stats">
+<tr><th>Platform</th><th>Programs</th><th>VDP</th><th>Top bounty</th><th>New (7d)</th><th>New (30d)</th></tr>
+{% for s in stats %}
+<tr><td><a href="/?platform={{ s.platform }}">{{ s.platform }}</a></td><td>{{ s.n }}</td>
+<td>{{ s.vdp_n }}</td><td>{% if s.max_b %}{{ s.max_b|human_money }}{% else %}—{% endif %}</td><td>{{ s.new7 }}</td><td>{{ s.new30 }}</td></tr>
+{% endfor %}
+</table>
+{% endblock %}

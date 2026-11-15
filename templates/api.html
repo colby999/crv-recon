@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}API | CRV recon{% endblock %}
+{% block body %}
+<h1>CRV recon API</h1>
+<p class="sub">Free, no auth, JSON everywhere. Every link below is live — click to run it against the current data. Agents: <a href="/llms.txt">/llms.txt</a> is the machine-readable map.</p>
+
+<h2>Programs</h2>
+<ul class="feed">
+<li><a href="/api/programs">GET /api/programs</a> — full catalog. Filters: <a href="/api/programs?platform=hackerone">?platform=</a>, <a href="/api/programs?tier=S">?tier=S</a>, <a href="/api/programs?vdp=all&amp;show=active">?vdp=&amp;show=</a>, <a href="/api/programs?q=gitlab">?q=</a> (matches target identities too), <a href="/api/programs?sort=bounty">?sort=newest|bounty|reports|name</a></li>
+<li><a href="/api/programs/828/targets">GET /api/programs/&lt;id&gt;/targets</a> — one program's scope, scored</li>
+</ul>
+
+<h2>Changes &amp; targets</h2>
+<ul class="feed">
+<li><a href="/api/changes">GET /api/changes</a> — latest target/program events. <a href="/api/changes?kind=target_added">?kind=target_added|target_removed|…</a></li>
+<li><a href="/tags">GET /tags</a> — tag inventory (HTML); <a href="/api/tags">GET /api/tags</a> (JSON)</li>
+</ul>
+
+<h2>CVEs</h2>
+<ul class="feed">
+<li><a href="/api/cves?program_id=828">GET /api/cves?program_id=&lt;id&gt;</a> — scanner-attributed rows + one page of corpus hits, newest first. <a href="/api/cves?program_id=828&amp;page=2&amp;per_page=10">?page=N&amp;per_page=M</a> (per_page 1–100)</li>
+</ul>
+
+<h2>Scans</h2>
+<ul class="feed">
+<li><span class="chip">POST</span> /api/scan — <code>{"program_id": N, "identity": "owner/repo", "mode": "light|full|sniper|cves", "manual": true}</code> — queues the external scanner; manual scans skip the scope check (your tool, your call)</li>
+<li><a href="/api/scans?program_id=900">GET /api/scans?program_id=&lt;id&gt;</a> — scan queue + results</li>
+</ul>
+
+<h2>Status &amp; ops</h2>
+<ul class="feed">
+<li><a href="/api/status">GET /api/status</a> — program/scrape counters</li>
+<li><a href="/api/refresh/status">GET /api/refresh/status</a> — is a refresh running</li>
+<li><span class="chip">POST</span> /api/refresh — kick live scrapers + corpus pulls (409 if one is running)</li>
+<li><a href="/health">GET /health</a> — liveness</li>
+</ul>
+
+<h2>Exports</h2>
+<ul class="feed">
+<li><a href="/export.txt">GET /export.txt</a> — plain-text program list; <a href="/export.txt?format=targets">?format=targets</a> appends scope identities</li>
+</ul>
+<p class="meta">HTML pages (/ etc.) are for humans; JSON endpoints are stable — build on them.</p>
+{% endblock %}

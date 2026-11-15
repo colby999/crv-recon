@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Tags | CRV recon{% endblock %}
+{% block body %}
+<h1>Scope tags</h1>
+<p class="sub">Every tag in the catalog with live program counts. Click to filter the feed.</p>
+<p class="tags big">{% for t,n in tags %}<a class="tag" href="/?tag={{ t }}&vdp=all">{{ t }} ({{ n }})</a>{% endfor %}</p>
+{% endblock %}

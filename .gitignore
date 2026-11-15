@@ -1,0 +1,17 @@
+# runtime data — never commit (scan results, indexes, sweep state)
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# logs and machine-local state
+server.log
+seed_*.log
+scanner_path.txt
+.env
+__pycache__/
+.auto/
+
+# local build artifacts
+*.pyc
+.DS_Store

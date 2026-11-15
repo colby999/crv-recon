@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}{{ p.name }} | CRV recon{% endblock %}
+{% block body %}
+<p><a href="/">← programs</a></p>
+<div class="detail-head">
+{% if p.logo_url %}<img class="logo big" src="{{ p.logo_url }}" alt="" loading="lazy" onerror="this.remove()">
+{% else %}<span class="logo-fallback big">{{ p.name[:1] }}</span>{% endif %}
+<div>
+<h1>{{ p.name }}</h1>
+<p><span class="plat">{{ p.platform }}</span>
+{% if p.tier %}<span class="tier tier-{{ p.tier|lower }}" title="{{ p.tier_why }}">{{ p.tier }} · {{ p.score }}/100</span>{% endif %}
+{% if p.is_new %}<span class="newbadge">New</span>{% endif %}
+{% if p.is_contest %}<span class="contest">contest</span>{% endif %}
+{% if p.vdp %}<span class="vdp">free / VDP</span>{% endif %}
+{% if p.state not in ('active',) %}<span class="state">{{ p.state }}</span>{% endif %}</p>
+<p class="meta">{% if p.upstream_listed %}listed {{ p.listed_rel }} ({{ p.upstream_listed }}){% elif p.upstream_updated %}platform update {{ p.updated_rel }}{% else %}seen by radar {{ p.listed_rel }}{% endif %}{% if p.ends_rel %} · ends {{ p.ends_rel }} ({{ p.end_date[:10] }}){% endif %} · last checked {{ p.checked_rel }}</p>
+</div>
+</div>
+<p class="why">{{ p.tier_why }}</p>
+<p>Rewards: <strong>{% if p.reward_raw %}{{ p.reward_raw }}{% elif p.bounty_max %}{{ p.bounty_max|human_money }}{% else %}—{% endif %}</strong></p>
+<p><a href="{{ p.url }}" rel="noopener" target="_blank">Open official policy ↗</a></p>
+{% if p.focus_list %}<p class="focus">Focus: {% for f in p.focus_list %}<span class="chip">{{ f }}</span>{% endfor %}</p>{% endif %}
+{% if p.blurb %}<blockquote>{{ p.blurb }}</blockquote>{% endif %}
+{% if p.tags %}<p class="tags">Tags: {% for t in p.tags %}<a class="tag" href="/?tag={{ t }}&vdp=all">{{ t }}</a>{% endfor %}</p>{% endif %}
+{% if p.languages %}<p class="tags">Languages: {% for t in p.languages %}<span class="tag">{{ t }}</span>{% endfor %}</p>{% endif %}
+{% if in_scope or out_scope %}<h2 id="scope">Scope — {{ in_scope|length }} eligible{% if out_scope %} · {{ out_scope|length }} out of scope{% endif %}</h2>{% endif %}
+{% if in_scope %}<button class="scanbtn" id="copyTargets" onclick="copyTargets(this)">📋 copy {{ in_scope|length }} eligible targets</button>{% endif %}
+{% if in_scope %}
+<ul class="scopes">{% for t,s,lb in in_scope %}<li class="ok" data-ident="{{ t.identity }}">✅ {{ t.identity }} <span class="meta">{{ t.target_type }}</span> <span class="chip score">{{ lb }} {{ s }}</span> <button class="scanbtn" data-pid="{{ p.id }}" data-ident="{{ t.identity }}" onclick="queueScan(this)">🔍 scan</button></li>{% endfor %}</ul>
+{% endif %}
+{% if out_scope %}<ul class="scopes">{% for t,s,lb in out_scope %}<li class="no">🚫 {{ t.identity }} <span class="meta">{{ t.target_type }} · out of scope</span></li>{% endfor %}</ul>{% endif %}
+{% if not in_scope and not out_scope %}<p class="meta">{% if p.last_deep %}The official program page lists no scope targets — check the policy for details.{% elif sync_queued %}Scope not pulled yet — sync queued, reload this page in a minute.{% else %}Scope not pulled yet — check the official policy.{% endif %}</p>{% endif %}
+<h2 id="cves">CVEs {% if cves or corpus_total %}({{ (cves|length) + (corpus_total or 0) }}){% endif %}</h2>
+{% if cves %}<ul class="cves">{% for v in cves %}
+<li><span class="chip sev sev-{{ v.severity or 'unknown' }}">{{ v.severity or 'unrated' }}</span> <a href="{{ v.url }}" rel="noopener" target="_blank">{{ v.cve_id }}</a>{% if v.score is not none %} <span class="chip score">CVSS {{ v.score }}</span>{% endif %} <span class="meta">{{ v.identity }}</span>{% if v.summary %} — {{ v.summary }}{% endif %} <span class="meta">{{ v.published[:10] }}</span></li>
+{% endfor %}</ul>
+<p class="meta">Attributed by crv-leak-scan (--cves): local advisory corpus + GitHub advisories API + CVE mentions in the target's own repos. Links open the real github.com/advisories page.</p>{% endif %}
+{% if corpus_cves %}{% set pulls = [] %}{% for n, d in (corpus_fresh or {}).items() %}{% if d %}{% set _ = pulls.append(n ~ ' pulled ' ~ d) %}{% endif %}{% endfor %}<h3 class="cve-sub">Vault corpus — {{ corpus_total }} CVEs for “{{ p.name }}”, newest first{% if pulls %} · {{ pulls|join(' · ') }}{% endif %}</h3>
+<ul class="cves">{% for v in corpus_cves %}
+<li><span class="chip">{{ v.source }}</span> <a href="{{ v.url }}" rel="noopener" target="_blank">{{ v.cve_id }}</a>{% if v.ghsa_id %} <span class="meta">{{ v.ghsa_id }}</span>{% endif %}{% if v.summary %} — {{ v.summary }}{% endif %} <span class="meta">{{ v.published }}</span></li>
+{% endfor %}</ul>
+{% if corpus_pages > 1 %}<p class="pager">{% if corpus_page > 1 %}<a class="scanbtn" href="?page={{ corpus_page - 1 }}&per_page={{ corpus_per_page }}#cves">← newer</a>{% endif %} <span class="meta">page {{ corpus_page }} / {{ corpus_pages }} · showing {{ ((corpus_page - 1) * corpus_per_page) + 1 }}–{{ [(corpus_page * corpus_per_page), corpus_total]|min }} of {{ corpus_total }}</span> {% if corpus_page < corpus_pages %}<a class="scanbtn" href="?page={{ corpus_page + 1 }}&per_page={{ corpus_per_page }}#cves">older →</a>{% endif %} <span class="meta">per page:</span> {% for pp in (25, 50, 100) %}<a class="scanbtn{% if corpus_per_page == pp %} on{% endif %}" href="?page=1&per_page={{ pp }}#cves">{{ pp }}</a>{% endfor %}</p>{% endif %}{% endif %}
+{% if not cves and not corpus_total %}<p class="meta">No CVEs on file for this program in either local corpus (vault advisories + 425k-record CVE index) and no attribution scan has been stored yet. If the vendor ships software under another name, run a <strong>cve sweep</strong> below on its GitHub <code>owner/repo</code> — attribution rows land here as linked CVE ids.</p>{% endif %}
+<h2>History</h2>
+<ul>{% for h in history %}<li>{{ h.ts[:19].replace('T', ' ') }} UTC · {{ h.kind }} · {{ h.detail }}</li>{% endfor %}</ul>
+<h2 id="scans">Leak scans {% if scans %}({{ scans|length }}){% endif %}</h2>
+<div class="scanpanel">
+  <label>Mode:
+    <select id="scanMode" class="modsel">
+      <option value="light" title="worktree only, fast">light search</option>
+      <option value="full" title="entire git history">full history</option>
+      <option value="sniper" title="GitHub owner/repo, every weapon, max depth">sniper</option>
+      <option value="cves" title="CVE sweep — every CVE attributable to an owner or owner/repo (corpus + advisories API + code search)">cve sweep</option>
+      <option value="leak" title="leak scan — clone one repo, scan worktree for secrets">leak scan</option>
+      <option value="leakorg" title="leak scan (org + members) — every public repo of the org and its members">leak org+members</option>
+    </select>
+  </label>
+  <label>Target:
+    <input id="scanTarget" class="modsel" size="42"
+           placeholder="local path, or owner/repo for sniper">
+  </label>
+  <button class="scanbtn" id="manualScanBtn" onclick="manualScan(this)">🔍 scan target</button>
+  <p class="meta">Per-target 🔍 buttons appear on each in-scope row above. This panel scans anything you paste — light/full want a local path, sniper wants <code>owner/repo</code>.</p>
+</div>
+{% if scans %}<ul class="scans">
+{% for s in scans %}<li>{{ s.ts[:16] }} · {{ s.identity }} · <span class="chip">{{ s.mode or 'light' }}</span> · <strong>{{ s.status }}</strong>{% if s.findings %} <span class="chip sev sev-critical">⚠ {{ s.findings }} findings</span><details class="findetails" data-sid="{{ s.id }}"><summary class="meta">view</summary><button class="refreshbtn" onclick="checkLiveness(this, {{ s.id }})" title="derive addresses offline, check balance + nonce on a public RPC">⚖ check liveness</button><div class="ffind"></div></details>{% endif %}{% if s.summary %} — {{ s.summary }}{% endif %}{% if s.status == 'running' %} <div class="pbar running indeterminate"><i style="width:{{ s.progress }}%"></i></div>{% elif s.status == 'done' %} <div class="pbar done"><i style="width:100%"></i></div>{% elif s.status == 'error' %} <div class="pbar error"><i style="width:100%"></i></div>{% endif %}</li>{% endfor %}
+</ul>{% else %}<p class="meta">No scans yet — pick a mode, paste a target or hit a 🔍 button. The external scanner runs unmodified; results appear here on reload.</p>{% endif %}
+<script>
+function currentMode() { return (document.getElementById('scanMode') || {}).value || 'light'; }
+async function queueScan(btn) {
+  btn.disabled = true; btn.textContent = 'queued…';
+  const r = await fetch('/api/scan', {method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({program_id: btn.dataset.pid, identity: btn.dataset.ident,
+                          mode: currentMode()})});
+  const d = await r.json();
+  btn.textContent = d.ok ? ('queued ✓ ' + d.mode + ' — reload soon') : ('error: ' + (d.error || r.status));
+}
+async function manualScan(btn) {
+  const ident = document.getElementById('scanTarget').value.trim();
+  const msg = document.getElementById('manualMsg');
+  if (!ident) { alert('paste a target first (path or owner/repo)'); return; }
+  btn.disabled = true; btn.textContent = 'queued…';
+  const r = await fetch('/api/scan', {method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({program_id: {{ p.id }}, identity: ident,
+                          mode: currentMode(), manual: true})});
+  const d = await r.json();
+  btn.disabled = false; btn.textContent = '🔍 scan target';
+  if (msg) { msg.textContent = d.ok ? ('queued ✓ ' + d.mode + ' — reload soon') : ('error: ' + (d.error || r.status)); }
+}
+async function copyTargets(btn) {
+  const items = Array.from(document.querySelectorAll('.scopes li.ok'))
+    .map(li => li.dataset.ident).filter(Boolean);
+  try {
+    await navigator.clipboard.writeText(items.join('\n'));
+    btn.textContent = 'copied ✓';
+  } catch (e) {
+    window.prompt('Copy targets:', items.join('\n'));
+  }
+}
+</script>
+{% endblock %}

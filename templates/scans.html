@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Scans | CRV recon{% endblock %}
+{% block body %}
+<h1>Scans</h1>
+<p class="sub"><span id="runCount">{{ running }} running · {{ queued }} queued</span> — auto-refreshes while anything is in flight. Bars fill against each mode's time budget; they hit 95% and hold until the scanner actually exits.</p>
+
+<div class="scanpanel">
+  <span>{% if refresh_running %}🔄 platform refresh running{% else %}Platform refresh idle{% endif %}</span>
+  {% if refresh_running %}<div class="pbar running indeterminate"><i></i></div><span class="meta" id="refreshPlatforms"></span>{% endif %}
+  <button class="refreshbtn" onclick="refreshNow(this)">🔄 refresh now</button>
+  <span class="meta" id="refreshMsg"></span>
+</div>
+
+<div id="scanlist">
+{% for s in scans %}
+<div class="scanrow2" data-sid="{{ s.id }}">
+  <span class="chip">{{ s.mode }}</span>
+  <a href="/program/{{ s.program_id }}">{{ s.program_name }}</a>
+  <span class="meta">{{ s.identity }}</span>
+  {% if s.findings %}<span class="chip sev sev-critical">⚠ {{ s.findings }}</span><details class="findetails" data-sid="{{ s.id }}"><summary class="meta">view</summary><button class="refreshbtn" onclick="checkLiveness(this, {{ s.id }})" title="derive addresses offline, check balance + nonce on a public RPC">⚖ check liveness</button><div class="ffind"></div></details>{% endif %}
+  <div class="pbar {{ s.status }}{% if s.status == 'running' %} indeterminate{% endif %}"><i style="width:{{ s.progress }}%"></i></div>
+  <span class="meta sstat"><strong>{{ s.status }}</strong>{% if s.summary %} — {{ s.summary }}{% endif %}</span>
+  <span class="meta selapsed">{% if s.elapsed %}{{ (s.elapsed // 60) }}:{{ '%02d' % (s.elapsed % 60) }}{% endif %}</span>
+</div>
+{% else %}
+<p class="meta">No scans yet — hit a 🔍 button on any program page and they land here with live bars.</p>
+{% endfor %}
+</div>
+<script>
+const loadIso = new Date().toISOString().slice(0, 19) + 'Z';
+async function poll() {
+  try {
+    const r = await (await fetch('/api/scans/all')).json();
+    const rows = r.scans || [];
+    const list = document.getElementById('scanlist');
+    const runEl = document.getElementById('runCount');
+    const running = rows.filter(s => s.status === 'running').length;
+    const queued = rows.filter(s => s.status === 'pending').length;
+    if (runEl) runEl.textContent = running + ' running · ' + queued + ' queued';
+    const ids = rows.map(s => s.id).join(',');
+    const cur = Array.from(list.querySelectorAll('[data-sid]')).map(e => +e.dataset.sid).join(',');
+    if (ids !== cur) { setTimeout(() => location.reload(), 800); return; }
+    for (const s of rows) {
+      const el = list.querySelector('[data-sid="' + s.id + '"]');
+      if (!el) continue;
+      const bar = el.querySelector('.pbar i');
+      if (bar) bar.style.width = s.progress + '%';
+      const st = el.querySelector('.sstat');
+      if (st) {
+        st.textContent = '';
+        const b = document.createElement('strong');
+        b.textContent = s.status;
+        st.appendChild(b);
+        if (s.summary) st.appendChild(document.createTextNode(' — ' + s.summary));
+      }
+      const el2 = el.querySelector('.selapsed');
+      if (el2 && s.elapsed) el2.textContent = Math.floor(s.elapsed / 60) + ':' + String(s.elapsed % 60).padStart(2, '0');
+    }
+    const rp = document.getElementById('refreshPlatforms');
+    if (rp) {
+      const rs = await (await fetch('/api/refresh/status')).json();
+      if (rs.running) {
+        const fresh = Object.values(rs.scrapes || {}).filter(v => v > loadIso).length;
+        rp.textContent = fresh ? (fresh + ' platforms refreshed this cycle…') : 'starting…';
+      }
+    }
+  } catch (e) {}
+}
+setInterval(poll, 3000);
+async function refreshNow(btn) {
+  btn.disabled = true;
+  const msg = document.getElementById('refreshMsg');
+  try {
+    const r = await fetch('/api/refresh', {method: 'POST'});
+    const d = await r.json();
+    if (!d.ok && d.running) { msg.textContent = 'a refresh is already running…'; }
+  } catch (e) { msg.textContent = 'refresh failed to start: ' + e; }
+  btn.disabled = false;
+  setTimeout(poll, 500);
+}
+</script>
+{% endblock %}

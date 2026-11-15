@@ -1,0 +1,10 @@
+[Unit]
+Description=Run radar-clone refresh every 30 minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=30min
+Unit=radar-refresh.service
+
+[Install]
+WantedBy=timers.target

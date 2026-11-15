@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}About | CRV recon{% endblock %}
+{% block body %}
+<h1>About CRV recon</h1>
+<p>A free, login-free bug bounty program radar: live public listings, opportunity
+tiers, target tracking, and a JSON API — everything unlocked, no Pro paywall, no alerts.</p>
+<h2>Data sources</h2>
+<ul>
+<li><strong>HackenProof</strong> — full catalog + per-program scope pages (polite crawl)</li>
+<li><strong>YesWeHack</strong> — server-rendered directory cards</li>
+<li>Offline samples fill gaps until more adapters land</li>
+</ul>
+<h2>Free capabilities</h2>
+<ul>
+<li>Program feed: search (matches target identities too), platform/tag/tier filters, upcoming &amp; free lanes</li>
+<li>Opportunity tiers (Elite/Hot/Strong/Potential) + per-target scores with duplicate-risk context</li>
+<li>Latest-targets feed, platform momentum (7d/30d), <code>/export.txt</code>, JSON API</li>
+</ul>
+<p>Always confirm scope on the upstream program policy before testing.</p>
+{% endblock %}

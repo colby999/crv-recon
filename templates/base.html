@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}CRV Recon{% endblock %}</title>
+<link rel="icon" href="/static/logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/cards.css">
+<script>
+/* apply persisted theme before first paint (no flash) */
+try {
+  if (localStorage.getItem('theme') === 'light') document.documentElement.classList.add('light');
+} catch (e) {}
+</script>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/" title="CRV recon"><img src="/static/logo.svg" alt="" width="22" height="22" style="vertical-align:-5px;margin-right:7px;border-radius:6px">CRV <strong>recon</strong></a>
+  <nav>
+    <a href="/">Programs</a>
+    <a href="/?show=upcoming&vdp=all">Upcoming</a>
+    <a href="/?contest=1&show=all&vdp=all">Competitions</a>
+    <a href="/?vdp=vdp">Free / VDP</a>
+    <a href="/tags">Tags</a>
+    <a href="/latest-targets">Latest Targets</a>
+    <a href="/scans">Scans</a>
+    <a href="/leakscan">Leak Scan</a>
+    <a href="/platforms">Platforms</a>
+    <a href="/about">About</a>
+    <a href="/api">API</a>
+    <button class="themetoggle" id="themeToggle" onclick="toggleTheme()" title="toggle light/dark">☀️ light</button>
+  </nav>
+</header>
+<script>
+function toggleTheme() {
+  const html = document.documentElement;
+  const light = html.classList.toggle('light');
+  try { localStorage.setItem('theme', light ? 'light' : 'dark'); } catch (e) {}
+  document.getElementById('themeToggle').textContent = light ? '🌙 dark' : '☀️ light';
+}
+try {
+  if (document.documentElement.classList.contains('light'))
+    document.getElementById('themeToggle').textContent = '🌙 dark';
+} catch (e) {}
+</script>
+<main>{% block body %}{% endblock %}</main>
+<footer>CRV recon — free research radar. Confirm scope on the upstream platform policy before testing.</footer>
+<script>
+/* findings viewers: any <details class="findetails" data-sid=N> fetches its
+   scan's findings on first open — textContent only, never innerHTML. Raw
+   secrets render blurred; click to unblur. Liveness button runs the offline
+   address derivation + public-RPC balance check for eth keys. */
+function renderFindings(box, j) {
+  box.textContent = '';
+  if (!j.findings || !j.findings.length) { box.textContent = 'no parseable findings stored'; return; }
+  for (const f of j.findings) {
+    const row = document.createElement('div');
+    row.className = 'frow';
+    const sev = document.createElement('span');
+    sev.className = 'chip sev sev-' + (f.severity || 'unknown');
+    sev.textContent = f.severity || '?';
+    const det = document.createElement('span');
+    det.textContent = f.detector;
+    const loc = document.createElement('span');
+    loc.className = 'meta';
+    loc.textContent = f.file + (f.line ? ':' + f.line : '');
+    row.append(sev, det, loc);
+    if (f.address) {
+      const ad = document.createElement('span');
+      ad.className = 'chip';
+      ad.textContent = f.address;
+      ad.title = 'derived offline from the key — public data';
+      row.appendChild(ad);
+    }
+    if (f.verdict) {
+      const v = document.createElement('span');
+      v.className = 'chip sev sev-' + (f.verdict === 'FUNDED' ? 'critical' :
+        f.verdict === 'HISTORY' ? 'medium' : 'unknown');
+      v.textContent = f.verdict;
+      v.title = {FUNDED: 'balance > 0 — live key controlling money',
+                 HISTORY: 'has signed on-chain before',
+                 EMPTY: 'zero balance, zero nonce — test fixture or expired',
+                 UNVERIFIED: 'check failed'}[f.verdict] || '';
+      row.appendChild(v);
+    }
+    const msk = document.createElement('span');
+    msk.className = 'meta';
+    msk.textContent = f.masked;
+    const sc = document.createElement('span');
+    sc.className = 'chip';
+    sc.textContent = (f.scoreLabel || '') + (f.score != null ? ' ' + f.score : '');
+    row.append(msk, sc);
+    if (f.raw) {
+      const rv = document.createElement('span');
+      rv.className = 'rawsecret';
+      rv.title = 'click to reveal / hide';
+      rv.textContent = f.raw;
+      rv.addEventListener('click', () => rv.classList.toggle('open'));
+      row.appendChild(rv);
+    }
+    box.appendChild(row);
+  }
+}
+async function loadFindings(d) {
+  const box = d.querySelector('.ffind');
+  if (!box || box.dataset.loaded === '1') return;
+  box.dataset.loaded = '1';
+  box.textContent = 'loading…';
+  try {
+    const r = await fetch('/api/scan/' + d.dataset.sid + '/findings');
+    renderFindings(box, await r.json());
+  } catch (e) { box.textContent = 'failed to load findings'; }
+}
+async function checkLiveness(btn, sid) {
+  btn.disabled = true;
+  btn.textContent = 'checking…';
+  try {
+    await fetch('/api/liveness', {method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({scan_id: sid})});
+  } catch (e) {}
+  const d = document.querySelector('.findetails[data-sid="' + sid + '"]');
+  if (d && d.open) {
+    const box = d.querySelector('.ffind');
+    if (box) {
+      try {
+        const r = await fetch('/api/scan/' + sid + '/findings');
+        renderFindings(box, await r.json());
+      } catch (e) {}
+    }
+  }
+  btn.disabled = false;
+  btn.textContent = '⚖ check liveness';
+}
+document.addEventListener('toggle', async (ev) => {
+  const d = ev.target;
+  if (d.tagName !== 'DETAILS' || !d.classList.contains('findetails') || !d.open) return;
+  await loadFindings(d);
+}, true);
+</script>
+</body>
+</html>

@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}Latest Bug Bounty Programs | CRV recon{% endblock %}
+{% block body %}
+<h1>Latest Bug Bounty Programs</h1>
+<p class="sub">Compare public programs by rewards, scope, and listing date. All opportunity tags free.</p>
+<form class="filters" method="get">
+  <input name="q" placeholder="Search programs…" value="{{ args.get('q','') }}">
+  <select name="platform"><option value="">All platforms</option>
+    {% for pl in platforms %}<option value="{{ pl }}" {% if args.get('platform')==pl %}selected{% endif %}>{{ pl }}</option>{% endfor %}
+  </select>
+  <input name="tag" placeholder="tag: domain, api…" value="{{ args.get('tag','') }}">
+  <select name="tier"><option value="">Any tier</option>
+    {% for t in ['Elite','Hot','Strong','Potential'] %}<option {% if args.get('tier')==t %}selected{% endif %}>{{ t }}</option>{% endfor %}
+  </select>
+  <select name="sort">
+    <option value="newest" {% if args.get('sort','newest')=='newest' %}selected{% endif %}>Newest</option>
+    <option value="bounty" {% if args.get('sort')=='bounty' %}selected{% endif %}>Top bounty</option>
+    <option value="reports" {% if args.get('sort')=='reports' %}selected{% endif %}>Most reports</option>
+    <option value="name" {% if args.get('sort')=='name' %}selected{% endif %}>Name</option>
+  </select>
+  <select name="show">
+    <option value="active" {% if args.get('show','active')=='active' %}selected{% endif %}>Active</option>
+    <option value="upcoming" {% if args.get('show')=='upcoming' %}selected{% endif %}>Upcoming</option>
+    <option value="suspended" {% if args.get('show')=='suspended' %}selected{% endif %}>Suspended</option>
+    <option value="ended" {% if args.get('show')=='ended' %}selected{% endif %}>Ended</option>
+    <option value="all" {% if args.get('show')=='all' %}selected{% endif %}>Everything</option>
+  </select>
+  <select name="contest">
+    <option value="" {% if not args.get('contest') %}selected{% endif %}>All types</option>
+    <option value="1" {% if args.get('contest')=='1' %}selected{% endif %}>Competitions</option>
+    <option value="0" {% if args.get('contest')=='0' %}selected{% endif %}>Bounties/VDP</option>
+  </select>
+  <select name="vdp">
+    <option value="paid" {% if args.get('vdp','paid')=='paid' %}selected{% endif %}>Paid only</option>
+    <option value="all" {% if args.get('vdp')=='all' %}selected{% endif %}>Paid + free</option>
+    <option value="vdp" {% if args.get('vdp')=='vdp' %}selected{% endif %}>Free / VDP only</option>
+  </select>
+  <select name="view">
+    <option value="grid" {% if view=='grid' %}selected{% endif %}>Grid</option>
+    <option value="list" {% if view=='list' %}selected{% endif %}>List</option>
+  </select>
+  <button type="submit">Apply</button>
+</form>
+<p class="count">Showing {{ programs|length }} of {{ total }} programs · page {{ page }}/{{ pages }}
+  · <button class="refreshbtn" id="refreshBtn" onclick="refreshNow(this)">🔄 Refresh bounties</button> <span class="meta" id="refreshMsg"></span>
+  · <a href="{{ export_url }}&n=50">export .txt</a>
+  {% if updated %}· <details class="refdetails"><summary class="meta">refreshed {{ (updated.values()|max)[:16] }} UTC</summary><span class="meta">{% for k,v in updated.items() %}{{ k }} {{ v[:16] }}{% if not loop.last %} · {% endif %}{% endfor %}</span></details>{% endif %}</p>
+{% if args.get('show')=='upcoming' and total == 0 %}<p class="count meta">No upcoming programs right now — every tracked contest is live or ended. Future-dated launches land here automatically.</p>{% endif %}
+<div class="{{ 'grid' if view=='grid' else 'list' }}">
+{% for p in programs %}
+  <article class="card">
+    <div class="card-head">
+      {% if p.logo_url %}<img class="logo" src="{{ p.logo_url }}" alt="" loading="lazy" onerror="this.remove()">
+      {% else %}<span class="logo-fallback">{{ p.name[:1] }}</span>{% endif %}
+      <div class="card-title">
+        <h2><a href="/program/{{ p.id }}">{{ p.name }}</a></h2>
+        <p class="meta">{{ p.platform }} · {% if p.upstream_listed %}listed {{ p.listed_rel }}{% elif p.upstream_updated %}platform update {{ p.updated_rel }}{% else %}seen by radar {{ p.listed_rel }}{% endif %}{% if p.ends_rel %} · ends {{ p.ends_rel }}{% endif %}</p>
+      </div>
+      {% if p.tier %}<span class="tier tier-{{ p.tier|lower }}" title="{{ p.tier_why }}">{{ p.tier }}</span>{% endif %}
+    </div>
+    <p class="reward">{% if p.reward_raw %}{{ p.reward_raw }}{% elif p.bounty_max %}{{ p.bounty_max|human_money }}{% else %}—{% endif %}
+      {% if p.is_new %}<span class="newbadge">New</span>{% endif %}
+      {% if p.is_contest %}<span class="contest">contest</span>{% endif %}
+      {% if p.vdp %}<span class="vdp">free</span>{% endif %}
+      {% if p.state not in ('active',) %}<span class="state">{{ p.state }}</span>{% endif %}</p>
+    {% if p.focus_list %}<p class="focus">{% for f in p.focus_list %}<span class="chip">{{ f }}</span>{% endfor %}</p>{% endif %}
+    <p class="scope">
+      {% if p.scope_n %}<a href="/program/{{ p.id }}#scope">🎯 {{ p.scope_n }} target{{ 's' if p.scope_n != 1 }}: {{ p.scope_sample|join(', ') }}{% if p.scope_n > p.scope_sample|length %} +{{ p.scope_n - p.scope_sample|length }} more{% endif %}</a>
+      {% else %}<a href="/program/{{ p.id }}#scope">scope details →</a>{% endif %}
+    </p>
+    {% if p.tags %}<p class="tags">{% for t in p.tags %}<a class="tag" href="/?tag={{ t }}&vdp=all">{{ t }}</a>{% endfor %}</p>{% endif %}
+    <p class="meta">reports {{ p.report_count }}</p>
+  </article>
+{% endfor %}
+</div>
+<div class="pager">
+  {% if prev_url %}<a href="{{ prev_url }}">← prev</a>{% endif %}
+  {% for pn in page_window %}
+    {% if pn == '…' %}<span class="dots">…</span>
+    {% elif pn == page %}<span class="on" aria-current="page">{{ pn }}</span>
+    {% else %}<a href="{{ page_url(pn) }}">{{ pn }}</a>{% endif %}
+  {% endfor %}
+  {% if next_url %}<a href="{{ next_url }}">next →</a>{% endif %}
+  {% if pages > 3 %}
+  <form class="jumppage" onsubmit="return jumpPage(this)">
+    <input id="jumpInput" type="number" min="1" max="{{ pages }}" placeholder="page…" class="modsel" style="width:5.5rem">
+    <button class="scanbtn" type="submit">go</button>
+  </form>
+  {% endif %}
+</div>
+<script>
+function jumpPage(f) {
+  const n = parseInt(f.querySelector('input').value, 10);
+  if (!n || n < 1 || n > {{ pages }}) { alert('page must be 1–{{ pages }}'); return false; }
+  const u = new URL(location.href);
+  u.searchParams.set('page', n);
+  location.href = u.toString();
+  return false;
+}
+document.addEventListener('keydown', function(e) {
+  if (e.key === '/' && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) {
+    e.preventDefault();
+    document.querySelector('.filters input[name="q"]').focus();
+  }
+});
+</script>
+<script>
+const startedAt = (document.querySelector('.meta') || {}).textContent;
+async function refreshNow(btn) {
+  btn.disabled = true;
+  const msg = document.getElementById('refreshMsg');
+  msg.textContent = 'pulling latest programs… (takes ~1 min)';
+  try {
+    const r = await fetch('/api/refresh', {method: 'POST'});
+    const d = await r.json();
+    if (!d.ok && d.running) { msg.textContent = 'a refresh is already running…'; }
+  } catch (e) {
+    msg.textContent = 'refresh failed to start: ' + e;
+    btn.disabled = false;
+    return;
+  }
+  const poll = setInterval(async () => {
+    try {
+      const s = await (await fetch('/api/refresh/status')).json();
+      if (!s.running) {
+        clearInterval(poll);
+        msg.textContent = 'done — reloading…';
+        location.reload();
+      }
+    } catch (e) { /* keep polling */ }
+  }, 5000);
+  setTimeout(() => { if (!btn.disabled) return; }, 0);
+  setTimeout(() => { msg.textContent += ' — still working, hang tight…'; }, 60000);
+}
+</script>
+{% endblock %}

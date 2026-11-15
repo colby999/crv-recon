@@ -1,0 +1,10 @@
+[Unit]
+Description=radar-clone refresh (live scrapers + deep scope, polite)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/radar-clone
+ExecStart=/usr/bin/env python /opt/radar-clone/refresh.py --live --deep --deep-limit 40
+Nice=10

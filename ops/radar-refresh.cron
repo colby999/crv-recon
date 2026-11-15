@@ -1,0 +1,3 @@
+# radar-clone refresher — every 30 min. Install with: crontab ops/radar-refresh.cron
+# Adjust the path + python to your checkout. Logs append to data/refresh.log.
+*/30 * * * * cd /opt/radar-clone && python refresh.py --live --deep --deep-limit 40 >> data/refresh.log 2>&1
