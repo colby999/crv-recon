@@ -56,6 +56,30 @@ python app.py                # serve on http://127.0.0.1:5000
 That's the whole loop. The UI is fully usable on seed data before a single
 live request.
 
+Windows shortcut: double-click `Start Radar.cmd` — it seeds on first run,
+opens the browser and serves on :5000. (Linux/macOS: `ops/start-radar.sh`.)
+
+### Agent access
+
+The JSON API is agent-first — any local agent (or you) can drive the radar
+without the UI:
+
+```
+GET  /api/programs?q=&platform=&tag=&tier=&show=&vdp=     feed + filters
+GET  /api/programs/<id>/targets                           scope for one program
+POST /api/scan     {"program_id":N,"identity":"<target>","mode":"light|full|sniper"}
+GET  /api/scans?program_id=<id>                            scan results
+GET  /api/changes  /api/tags  /api/status                  feeds + health
+GET  /export.txt?n=50&<filters>                            plain-text handoff
+GET  /llms.txt                                             machine-readable index
+```
+
+Scan modes map to crv-leak-scan flags: **light** = `--no-history` (fast
+worktree), **full** = `--full-history`, **sniper** = `--sniper <target>`
+(GitHub owner/repo or owner; light/full take a local path). Exit semantics:
+0/1 = done (1 = findings at `--fail-on` threshold), 2 = error. The scanner
+binary is auto-detected; override with `LEAK_SCAN_CMD`.
+
 ### Going live
 
 ```bash
