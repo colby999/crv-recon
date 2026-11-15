@@ -25,7 +25,7 @@ def main():
         n = radar_app.prune_seed(a.db)
         print('pruned %d seed programs' % n)
         return
-    n = radar_app.refresh_once(a.db, live=a.live, seed=a.seed)
+    n = radar_app.refresh_once(a.db, live=a.live, seed=a.seed or not a.live)
     if a.deep:
         import tracker as tracker_mod
         cxd = db.connect(a.db)

@@ -31,12 +31,12 @@ DEFAULT_MODE = 'light'
 
 # Portable auto-detect: checked in order until one exists on disk.
 _SCANNER_CANDIDATES = (
-    'scanner_path.txt',                       # one-line path file shipped with the app
-    r'..\crv-leak-scan\dist\cli.js',          # sibling of this folder (original layout)
-    r'crv-leak-scan\dist\cli.js',             # dropped inside this folder
-    r'..\..\crv-leak-scan\dist\cli.js',
-    os.path.expanduser(r'~\crv-leak-scan\dist\cli.js'),
-    os.path.expanduser(r'~/Desktop/crv-leak-scan/dist/cli.js'),
+    'scanner_path.txt',                    # one-line path file shipped with the app
+    os.path.join('..', 'crv-leak-scan', 'dist', 'cli.js'),   # sibling of this folder
+    os.path.join('crv-leak-scan', 'dist', 'cli.js'),         # dropped inside this folder
+    os.path.join('..', '..', 'crv-leak-scan', 'dist', 'cli.js'),
+    os.path.expanduser(os.path.join('~', 'crv-leak-scan', 'dist', 'cli.js')),
+    os.path.expanduser(os.path.join('~', 'Desktop', 'crv-leak-scan', 'dist', 'cli.js')),
 )
 
 
