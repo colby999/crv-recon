@@ -13,6 +13,11 @@ surface through a leak scanner, looking for keys the devs forgot existed.
 |---|---|
 | ![Home](docs/img/01-home-dark.png) | ![Leak Scan](docs/img/02-leak-scan.png) |
 | ![Scans hub](docs/img/03-scans-hub.png) | ![Program page](docs/img/04-program.png) |
+| ![CVE sweep](docs/img/06-cve-sweep.png) | |
+
+The CVE sweep merges layers — local cvelistV5/advisory index, the GitHub
+Advisory API, and CVE mentions found in the target's own repos — every row
+links to the real advisory page.
 
 Light mode too — cream and brown, because dark mode shouldn't get all the fun:
 
