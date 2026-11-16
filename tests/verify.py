@@ -1448,13 +1448,13 @@ def main():
         # 20b. REAL binary end-to-end: actual crv-leak-scan through /api/scan
         crv_cli = scanhook.find_scanner()
         repo_dir = _os.path.join(str(tmp), 'scanfix-e2e', 'probe-repo')
-        if _os.path.isfile(crv_cli):
+        if crv_cli and _os.path.isfile(crv_cli):
             import subprocess as _sub
             _os.makedirs(repo_dir, exist_ok=True)
             _sub.run(['git', 'init', '-q', repo_dir], check=False)
             with open(_os.path.join(repo_dir, 'chain.js'), 'w') as f:
                 f.write('rpc = "https://api.mainnet-beta.solana.com/?apikey=5up3rs3cr3tv4lueN0tRe4lK3yX9q2w"\n')
-        if _os.path.isfile(crv_cli) and _os.path.isdir(repo_dir):
+        if crv_cli and _os.path.isfile(crv_cli) and _os.path.isdir(repo_dir):
             r = ts.post('/api/scan', json={'program_id': wid_s})
             check('real scan needs ident', r.status_code == 400)
             # register the repo path as a target identity, then scan it for real
