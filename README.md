@@ -1,5 +1,7 @@
 # CRV recon
 
+![ci](https://github.com/colby999/crv-recon/actions/workflows/ci.yml/badge.svg)
+
 **A free, self-hosted bug-bounty program radar — with a constant GitHub leak sweep.**
 
 CRV recon aggregates public bug-bounty programs from 11 upstream platforms
